@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EnergyGreen</title>
+  <meta name="description" content="Previsão de consumo de energia com LSTM e GRU — máquina do tempo, simulador de tarifa e alertas de pico.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23138a5a' d='M13 2 4 14h7l-1 8 9-12h-7z'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+  <script>
+    try { const t = localStorage.getItem("eg-tema"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+  </script>
+</head>
+<body>
+  <div id="carregando" class="barra-carregando" hidden aria-hidden="true"></div>
+  <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
+
+  <header class="topo">
+    <div class="topo-marca">
+      <svg class="logo" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>
+      <div>
+        <h1>EnergyGreen</h1>
+        <p class="subtitulo">Previsão de consumo de energia com Deep Learning</p>
+      </div>
+    </div>
+    <div class="topo-acoes">
+      <div id="resumo-dados" class="resumo-dados" hidden></div>
+      <button id="btn-trocar" class="btn btn-fantasma" hidden>Trocar dados</button>
+      <button id="btn-tema" class="btn btn-icone" aria-label="Alternar tema claro/escuro" title="Alternar tema">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <!-- 1. Entrada de dados -->
+    <section id="entrada" class="entrada" aria-labelledby="t-entrada">
+      <div class="entrada-texto">
+        <h2 id="t-entrada">Comece carregando um histórico de consumo</h2>
+        <p>O modelo usa as <strong>últimas 168 horas</strong> (7 dias) para prever as <strong>próximas 24 horas</strong>.
+           Envie um CSV ou explore o período de teste do dataset UCI <em>Household Power Consumption</em> — dados que os modelos nunca viram no treino.</p>
+      </div>
+      <div class="entrada-acoes">
+        <label id="zona-upload" class="zona-upload" tabindex="0">
+          <input id="arquivo" type="file" accept=".csv,.txt,text/csv" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0-4 4m4-4 4 4M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+          <span class="zona-titulo">Arraste um CSV aqui</span>
+          <span class="zona-sub">ou clique para escolher o arquivo</span>
+        </label>
+        <div class="ou"><span>ou</span></div>
+        <button id="btn-exemplo" class="btn btn-primario btn-grande">Usar dados de exemplo</button>
+        <details class="formatos">
+          <summary>Formatos aceitos</summary>
+          <ul>
+            <li><strong>Bruto UCI</strong>: separador <code>;</code>, colunas <code>Date</code> (dd/mm/aaaa), <code>Time</code>, <code>Global_active_power</code>… (medições por minuto).</li>
+            <li><strong>Horário</strong>: coluna <code>datetime</code> + <code>Global_active_power</code> (kW). As demais medições são opcionais; se faltarem, são estimadas.</li>
+            <li>Mínimo de 168 h de histórico. Lacunas curtas são interpoladas; longas, preenchidas com a mesma hora da semana anterior.</li>
+          </ul>
+        </details>
+      </div>
+    </section>
+
+    <div id="painel" hidden>
+      <!-- 2. Cartões -->
+      <section class="cartoes" aria-label="Resumo da previsão">
+        <article class="cartao">
+          <h3>Consumo previsto <span class="dica">próximas 24 h</span></h3>
+          <p class="valor" id="c-kwh">—</p>
+          <p class="nota" id="c-kwh-nota"></p>
+        </article>
+        <article class="cartao">
+          <h3>Pico previsto</h3>
+          <p class="valor" id="c-pico">—</p>
+          <p class="nota" id="c-pico-nota"></p>
+        </article>
+        <article class="cartao">
+          <h3>Custo estimado <span class="dica">24 h</span></h3>
+          <p class="valor" id="c-custo">—</p>
+          <p class="nota" id="c-custo-nota"></p>
+        </article>
+        <article class="cartao">
+          <h3>Variação <span class="dica">vs 24 h anteriores</span></h3>
+          <p class="valor" id="c-var">—</p>
+          <p class="nota" id="c-var-nota"></p>
+        </article>
+      </section>
+
+      <!-- 3. Máquina do tempo -->
+      <section class="bloco" aria-labelledby="t-maquina">
+        <div class="bloco-cab">
+          <div>
+            <h2 id="t-maquina">Máquina do tempo</h2>
+            <p class="bloco-desc">Volte a qualquer dia do histórico, veja o que o modelo teria previsto e compare com o que aconteceu.</p>
+          </div>
+          <div class="segmentado" role="radiogroup" aria-label="Modelo">
+            <button role="radio" aria-checked="true" data-modelo="lstm" class="seg ativo">LSTM</button>
+            <button role="radio" aria-checked="false" data-modelo="gru" class="seg">GRU</button>
+          </div>
+        </div>
+
+        <div class="controles-tempo">
+          <div class="linha-tempo">
+            <button id="btn-ant" class="btn btn-icone" aria-label="Dia anterior" title="Dia anterior (←)">◀</button>
+            <input id="slider" type="range" min="0" max="0" step="1" value="0" aria-label="Momento da previsão">
+            <button id="btn-prox" class="btn btn-icone" aria-label="Próximo dia" title="Próximo dia (→)">▶</button>
+          </div>
+          <div class="linha-tempo-acoes">
+            <label class="campo-inline">Prever a partir de
+              <input id="data-ref" type="date">
+            </label>
+            <span id="rotulo-ref" class="rotulo-ref"></span>
+            <div class="espaco"></div>
+            <button id="btn-play" class="btn btn-fantasma" aria-pressed="false">▶ Reproduzir</button>
+            <button id="btn-futuro" class="btn btn-fantasma" title="Prever as 24 h após o fim da série">Ir para o futuro</button>
+            <button id="btn-revelar" class="btn btn-primario" aria-pressed="false">Revelar o real</button>
+          </div>
+        </div>
+
+        <div id="g-tempo" class="grafico grafico-alto" role="img" aria-label="Histórico de 168 horas e previsão das 24 horas seguintes"></div>
+        <div id="metricas-dia" class="metricas-dia" aria-live="polite"></div>
+      </section>
+
+      <div class="duas-colunas">
+        <!-- 4. Simulador de custo -->
+        <section class="bloco" aria-labelledby="t-custo">
+          <div class="bloco-cab">
+            <div>
+              <h2 id="t-custo">Simulador de custo e tarifa</h2>
+              <p class="bloco-desc">Quanto custa a previsão e quanto se economiza tirando consumo do horário de ponta.</p>
+            </div>
+          </div>
+          <div class="form-grade">
+            <label>Preço do kWh (R$)
+              <input id="tarifa" type="number" min="0" step="0.01" value="0.85" inputmode="decimal">
+            </label>
+            <label>Tarifa de ponta (R$)
+              <input id="tarifa-ponta" type="number" min="0" step="0.01" value="1.60" inputmode="decimal">
+            </label>
+            <label>Ponta: início
+              <select id="ponta-inicio"></select>
+            </label>
+            <label>Ponta: fim
+              <select id="ponta-fim"></select>
+            </label>
+            <label class="largo"><span>Deslocar <strong id="deslocar-valor">20%</strong> do consumo da ponta para as horas fora dela</span>
+              <input id="deslocar" type="range" min="0" max="100" step="5" value="20">
+            </label>
+          </div>
+          <div class="kpis">
+            <div><span>Custo total</span><strong id="k-total">—</strong></div>
+            <div><span>Na ponta <em id="k-ponta-kwh"></em></span><strong id="k-ponta">—</strong></div>
+            <div><span>Com deslocamento</span><strong id="k-desl">—</strong></div>
+            <div class="kpi-destaque"><span>Economia</span><strong id="k-eco">—</strong></div>
+          </div>
+          <div id="g-custo" class="grafico" role="img" aria-label="Custo por hora com horário de ponta destacado"></div>
+        </section>
+
+        <!-- 5. Alertas -->
+        <section class="bloco" aria-labelledby="t-alertas">
+          <div class="bloco-cab">
+            <div>
+              <h2 id="t-alertas">Alertas de pico e desperdício</h2>
+              <p class="bloco-desc">Arraste a linha tracejada no gráfico ou digite o limite.</p>
+            </div>
+          </div>
+          <div class="form-grade dois">
+            <label>Limite de potência (kW)
+              <input id="limite" type="number" min="0" step="0.1" value="2.5" inputmode="decimal">
+            </label>
+            <label>Margem de anomalia (%)
+              <input id="margem" type="number" min="0" step="5" value="50" inputmode="decimal">
+            </label>
+          </div>
+          <div id="g-alertas" class="grafico" role="img" aria-label="Previsão com linha de limite arrastável"></div>
+          <div id="lista-alertas" class="lista-alertas" aria-live="polite"></div>
+        </section>
+      </div>
+
+      <!-- 6. Tabela -->
+      <section class="bloco" aria-labelledby="t-tabela">
+        <div class="bloco-cab">
+          <div>
+            <h2 id="t-tabela">Valores previstos hora a hora</h2>
+            <p class="bloco-desc">Clique no cabeçalho para ordenar.</p>
+          </div>
+          <button id="btn-csv" class="btn btn-fantasma">Exportar CSV</button>
+        </div>
+        <div class="tabela-rolagem">
+          <table id="tabela" class="tabela">
+            <thead>
+              <tr>
+                <th data-col="hora" aria-sort="ascending">Hora</th>
+                <th data-col="previsto" class="num">Previsto (kW)</th>
+                <th data-col="baseline" class="num">Baseline (kW)</th>
+                <th data-col="real" class="num">Real (kW)</th>
+                <th data-col="erro" class="num">Erro (kW)</th>
+                <th data-col="custo" class="num">Custo (R$)</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <!-- 7. Desempenho -->
+    <section id="desempenho" class="bloco" aria-labelledby="t-desempenho">
+      <div class="bloco-cab">
+        <div>
+          <h2 id="t-desempenho">Desempenho dos modelos</h2>
+          <p class="bloco-desc" id="desempenho-desc">Métricas no conjunto de teste (dados nunca vistos no treino), em kW.</p>
+        </div>
+      </div>
+      <div class="tabela-rolagem">
+        <table id="tabela-metricas" class="tabela tabela-metricas"></table>
+      </div>
+      <div class="duas-colunas">
+        <div>
+          <h3 class="subtitulo-grafico">Erro médio por horizonte (MAE)</h3>
+          <div id="g-horizonte" class="grafico" role="img" aria-label="MAE por horizonte de previsão"></div>
+        </div>
+        <div>
+          <h3 class="subtitulo-grafico">Curvas de treino (MSE normalizado)</h3>
+          <div id="g-perdas" class="grafico" role="img" aria-label="Perda de treino e validação por época"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="rodape">
+    EnergyGreen · LSTM e GRU em PyTorch · Dataset UCI Individual Household Electric Power Consumption (id 235)
+  </footer>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/3.0.1/plotly.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
