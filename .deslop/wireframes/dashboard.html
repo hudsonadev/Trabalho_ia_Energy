@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wireframe — Dashboard EnergyGreen</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 24px; background: #e9e9e9; color: #222; font: 13px/1.4 Arial, sans-serif; }
+  h1 { font-size: 15px; margin: 0 0 4px; }
+  .legenda { color: #666; margin: 0 0 16px; max-width: 80ch; }
+  .opcao { background: #fff; border: 1px solid #bbb; margin-bottom: 32px; }
+  .opcao > header { padding: 10px 16px; background: #222; color: #fff; font-weight: bold; }
+  .opcao > header span { font-weight: normal; opacity: .75; }
+  .tela { padding: 16px; display: grid; gap: 16px; }
+  .barra { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #bbb; padding-bottom: 10px; }
+  .cx { border: 1px solid #999; padding: 10px; background: #f6f6f6; }
+  .forte { border: 2px solid #222; background: #fff; }
+  .leve { border: 1px dashed #aaa; background: transparent; }
+  .sem { border: 0; background: transparent; padding: 0; }
+  .graf { background: repeating-linear-gradient(135deg, #ddd 0 6px, #e8e8e8 6px 12px); display: grid; place-items: center; color: #555; }
+  .num { font-size: 34px; font-weight: bold; line-height: 1; }
+  .num.m { font-size: 20px; }
+  .rot { color: #666; font-size: 12px; }
+  .btn { display: inline-block; border: 1px solid #555; padding: 5px 10px; background: #fff; }
+  .btn.p { background: #222; color: #fff; }
+  .trilho { height: 8px; background: #ccc; position: relative; margin: 6px 0; }
+  .trilho::after { content: ""; position: absolute; left: 62%; top: -5px; width: 6px; height: 18px; background: #222; }
+  .lin { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .g-a { display: grid; grid-template-columns: 260px 1fr; gap: 20px; align-items: stretch; }
+  .col { display: grid; gap: 12px; align-content: start; }
+  .abas { display: flex; gap: 0; border-bottom: 2px solid #222; }
+  .abas span { padding: 7px 16px; border: 1px solid #999; border-bottom: 0; background: #eee; margin-right: 4px; }
+  .abas span.at { background: #222; color: #fff; border-color: #222; }
+  .nota { background: #fff7cc; border: 1px solid #d8c66a; padding: 2px 6px; font-size: 11px; color: #554; display: inline-block; }
+  hr { border: 0; border-top: 1px solid #bbb; margin: 0; }
+  .tab { height: 12px; background: #ddd; margin: 5px 0; }
+</style>
+</head>
+<body>
+<h1>Dashboard EnergyGreen — wireframe cinza (sem cor, sem fonte de marca)</h1>
+<p class="legenda">Papel: mostrar a previsão das próximas 24 h e deixar a pessoa testá-la contra o real. Borda grossa = protagonista. Tracejado = periferia. Notas amarelas explicam a decisão e não fazem parte da tela.</p>
+
+<!-- ============ A ============ -->
+<section class="opcao">
+  <header>A · Palco único <span>— uma página que desce: a previsão é o palco, o resto é consequência dela</span></header>
+  <div class="tela">
+    <div class="barra">
+      <strong>EnergyGreen</strong>
+      <span class="rot">exemplo UCI · 8 760 h · até 26/11/2010 &nbsp; [trocar dados] [tema]</span>
+    </div>
+
+    <div class="g-a">
+      <div class="col">
+        <div class="sem">
+          <div class="rot">Previsto para as próximas 24 h</div>
+          <div class="num">27,4 kWh</div>
+          <div class="rot">▲ 8% sobre as 24 h anteriores</div>
+        </div>
+        <hr>
+        <div class="sem"><div class="rot">Pico</div><div class="num m">3,1 kW · 20h</div></div>
+        <div class="sem"><div class="rot">Custo</div><div class="num m">R$ 26,80</div></div>
+        <hr>
+        <div class="sem lin"><span class="btn p">LSTM</span><span class="btn">GRU</span></div>
+        <div class="sem"><span class="btn p" style="width:100%;text-align:center;padding:10px">Revelar o real</span></div>
+        <span class="nota">Um número grande (a notícia), dois de apoio. Os 4 cartões iguais somem. Uma única ação principal.</span>
+      </div>
+      <div class="col">
+        <div class="graf forte" style="height:300px">gráfico: 168 h de histórico → 24 h previstas (+ real quando revelado)</div>
+        <div class="sem">
+          <div class="trilho"></div>
+          <div class="lin rot"><span>‹ dia</span><span>seg 22/11 · 00h → +24 h</span><span>dia ›</span><span style="flex:1"></span><span>[data]</span><span>▶ reproduzir</span><span>ir para o futuro</span></div>
+        </div>
+        <span class="nota">O slider vira o eixo do tempo do próprio gráfico. Reproduzir / futuro / data ficam como texto discreto na mesma linha.</span>
+        <div class="leve cx rot">depois de revelar: LSTM errou 0,31 kW em média · baseline 0,44 · LSTM venceu neste dia</div>
+      </div>
+    </div>
+
+    <hr>
+
+    <div class="g2">
+      <div class="col">
+        <strong>Custo e tarifa</strong>
+        <div class="lin"><div><div class="rot">Economia deslocando 20% da ponta</div><div class="num m">R$ 2,10</div></div><span class="rot">R$ 26,80 → R$ 24,70</span></div>
+        <div class="graf" style="height:120px">custo por hora, ponta destacada</div>
+        <div class="lin rot"><span>[kWh R$]</span><span>[ponta R$]</span><span>[início]</span><span>[fim]</span><span>[deslocar ──●──]</span></div>
+        <span class="nota">Resposta primeiro (economia), controles depois. 4 KPIs iguais viram 1 número + 1 linha.</span>
+      </div>
+      <div class="col">
+        <strong>Alertas</strong>
+        <div class="lin"><div class="num m">2 horas acima de 2,5 kW</div></div>
+        <div class="graf" style="height:120px">previsão + linha de limite arrastável</div>
+        <div class="rot">20h · 3,1 kW (+0,6)<br>21h · 2,8 kW (+0,3)</div>
+        <div class="lin rot"><span>[limite kW]</span><span>[margem %]</span></div>
+      </div>
+    </div>
+
+    <hr>
+    <div class="lin"><strong>▸ Hora a hora</strong><span class="rot">fechado por padrão · 24 linhas · [exportar CSV]</span></div>
+    <hr>
+    <div class="col">
+      <strong>Como os modelos se saem no teste</strong>
+      <div class="rot">sem cartão: uma tabela curta (LSTM · GRU · baseline) e dois gráficos pequenos lado a lado</div>
+      <div class="g2"><div class="graf" style="height:80px">MAE por horizonte</div><div class="graf" style="height:80px">curvas de treino</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ B ============ -->
+<section class="opcao">
+  <header>B · Gráfico fixo + abas <span>— o gráfico nunca sai da vista; custo, alertas, tabela e modelos trocam embaixo</span></header>
+  <div class="tela">
+    <div class="barra">
+      <strong>EnergyGreen</strong>
+      <span class="rot">exemplo UCI · até 26/11/2010 &nbsp; [trocar dados] [tema]</span>
+    </div>
+
+    <div class="lin" style="justify-content:space-between">
+      <div class="lin">
+        <div><div class="rot">Previsto · próximas 24 h</div><div class="num">27,4 kWh</div></div>
+        <div><div class="rot">Pico</div><div class="num m">3,1 kW · 20h</div></div>
+        <div><div class="rot">vs. ontem</div><div class="num m">▲ 8%</div></div>
+      </div>
+      <div class="lin"><span class="btn p">LSTM</span><span class="btn">GRU</span><span class="btn p">Revelar o real</span></div>
+    </div>
+
+    <div class="graf forte" style="height:240px">gráfico: 168 h de histórico → 24 h previstas</div>
+    <div class="sem">
+      <div class="trilho"></div>
+      <div class="lin rot"><span>‹ dia</span><span>seg 22/11 · 00h → +24 h</span><span>dia ›</span><span style="flex:1"></span><span>[data]</span><span>▶ reproduzir</span><span>ir para o futuro</span></div>
+    </div>
+
+    <div>
+      <div class="abas"><span class="at">Custo</span><span>Alertas · 2</span><span>Hora a hora</span><span>Modelos</span></div>
+      <div class="cx" style="border-top:0">
+        <div class="g2">
+          <div class="col">
+            <div><div class="rot">Economia deslocando 20% da ponta</div><div class="num m">R$ 2,10</div><div class="rot">R$ 26,80 → R$ 24,70</div></div>
+            <div class="lin rot"><span>[kWh R$]</span><span>[ponta R$]</span><span>[início]</span><span>[fim]</span></div>
+            <div class="rot">[deslocar ──●──]</div>
+          </div>
+          <div class="graf" style="height:130px">custo por hora, ponta destacada</div>
+        </div>
+      </div>
+    </div>
+    <span class="nota">Menos rolagem e a aba de alertas ganha contagem. Custo: custo e alertas não ficam visíveis ao mesmo tempo, e "Modelos" fica escondido atrás de um clique (ruim se o professor só rolar a página).</span>
+  </div>
+</section>
+</body>
+</html>

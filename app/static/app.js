@@ -110,7 +110,7 @@ function eixo(extra = {}) {
 function layoutBase(extra = {}) {
   return Object.assign({
     paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
-    font: { family: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif', color: cor("--texto-2"), size: 12 },
+    font: { family: getComputedStyle(document.body).fontFamily, color: cor("--texto-2"), size: 12 },
     margin: { l: 50, r: 14, t: 36, b: 40 },
     separators: ",.",
     hovermode: "x unified",
@@ -142,16 +142,14 @@ async function enviarArquivo(arquivo) {
 
 function montarResumo(r) {
   const el = $("#resumo-dados");
-  el.replaceChildren();
-  const add = (txt, cls) => { const s = document.createElement("span"); s.textContent = txt; if (cls) s.className = cls; el.appendChild(s); };
-  add(`${rotuloData(paraMs(r.inicio), false)} → ${rotuloData(paraMs(r.fim), false)}`);
-  add(`${fmt(r.horas, 0)} h`);
-  add(`${fmt(r.faltantes_preenchidos, 0)} h preenchidas`);
-  add(`média ${fmt(r.media_kw)} kW · pico ${fmt(r.pico_kw)} kW`);
+  let txt = `Série: ${rotuloData(paraMs(r.inicio), false)} → ${rotuloData(paraMs(r.fim), false)} · ${fmt(r.horas, 0)} h`;
+  let dica = `${fmt(r.faltantes_preenchidos, 0)} h preenchidas · média ${fmt(r.media_kw)} kW · pico ${fmt(r.pico_kw)} kW`;
   if (r.colunas_estimadas && r.colunas_estimadas.length) {
-    add(`${r.colunas_estimadas.length} medições estimadas`, "aviso");
-    el.lastChild.title = "Colunas ausentes no CSV, estimadas a partir do treino: " + r.colunas_estimadas.join(", ");
+    txt += ` · ${r.colunas_estimadas.length} medições estimadas`;
+    dica += " · colunas ausentes no CSV, estimadas a partir do treino: " + r.colunas_estimadas.join(", ");
   }
+  el.textContent = txt;
+  el.title = dica;
   el.hidden = false;
 }
 
@@ -204,10 +202,10 @@ function atualizarControlesTempo() {
   if (ehFuturo()) {
     const s = document.createElement("span");
     s.className = "futuro";
-    s.textContent = `Futuro: ${rotuloData(ms)} a partir das ${rotuloHora(paraIso(ms))} (sem dados reais)`;
+    s.textContent = `Futuro · ${rotuloData(ms)} · ${rotuloHora(paraIso(ms))}`;
     rot.appendChild(s);
   } else {
-    rot.textContent = `${rotuloData(ms)} · ${rotuloHora(paraIso(ms))} → +24 h`;
+    rot.textContent = `${rotuloData(ms)} · ${rotuloHora(paraIso(ms))}`;
   }
   $("#btn-ant").disabled = E.idx <= 0;
   $("#btn-prox").disabled = E.idx >= E.refs.length - 1;
@@ -250,7 +248,7 @@ function atualizarBotaoRevelar() {
   b.disabled = !temReal;
   b.title = temReal ? "" : "Período futuro: ainda não há consumo real para comparar.";
   b.setAttribute("aria-pressed", String(E.revelado && temReal));
-  b.textContent = E.revelado && temReal ? "Ocultar o real" : "Revelar o real";
+  b.textContent = E.revelado && temReal ? "Ocultar o consumo real" : "Revelar o consumo real";
 }
 
 function desenharTempo() {
@@ -261,9 +259,9 @@ function desenharTempo() {
   const real = realVisivel();
   const hover = "%{y:,.2f} kW";
   const traces = [
-    { x: p.historico.datetime, y: p.historico.kw, name: "Histórico (entrada 168 h)", mode: "lines",
+    { x: p.historico.datetime, y: p.historico.kw, name: "Histórico", mode: "lines",
       line: { color: cor("--serie-hist"), width: 1.5 }, hovertemplate: hover },
-    { x: p.horas, y: p.baseline, name: "Baseline (repete o dia anterior)", mode: "lines",
+    { x: p.horas, y: p.baseline, name: "Baseline (dia anterior)", mode: "lines",
       line: { color: cor("--serie-baseline"), width: 2, dash: "dot" }, hovertemplate: hover },
     { x: p.horas, y: p.previsto, name: `Previsão ${NOMES[p.modelo]}`, mode: "lines",
       line: { color: corModelo(p.modelo), width: 2.5 }, hovertemplate: hover },
@@ -277,36 +275,16 @@ function desenharTempo() {
     yaxis: eixo({ title: { text: "kW (média horária)", font: { size: 12 } }, rangemode: "tozero" }),
     shapes: [
       { type: "rect", xref: "x", yref: "paper", x0: paraIso(ref - HORA_MS / 2), x1: paraIso(fimPrev + HORA_MS / 2), y0: 0, y1: 1,
-        fillcolor: cor("--marca"), opacity: 0.07, line: { width: 0 }, layer: "below" },
+        fillcolor: cor("--foco"), opacity: 0.08, line: { width: 0 }, layer: "below" },
       { type: "line", xref: "x", yref: "paper", x0: paraIso(ref - HORA_MS / 2), x1: paraIso(ref - HORA_MS / 2), y0: 0, y1: 1,
-        line: { color: cor("--marca"), width: 1.5, dash: "dash" } },
+        line: { color: cor("--foco"), width: 1, dash: "dash" } },
     ],
     annotations: [
       { xref: "x", yref: "paper", x: paraIso(ref + 11.5 * HORA_MS), y: 0.98, yanchor: "top", showarrow: false,
-        text: "<b>próximas 24 h</b>", font: { color: cor("--marca"), size: 12 } },
+        text: "próximas 24 h", font: { color: cor("--foco"), size: 12 } },
     ],
   });
   Plotly.react("g-tempo", traces, layout, CONFIG_PLOTLY);
-}
-
-function chip(titulo, m, corMarca, vence) {
-  const el = document.createElement("div");
-  el.className = "chip" + (vence ? " vence" : "");
-  const mk = document.createElement("span");
-  mk.className = "marcador";
-  mk.style.background = corMarca;
-  const t = document.createElement("span");
-  t.className = "chip-titulo";
-  t.append(mk, ` ${titulo}`);
-  el.appendChild(t);
-  for (const [rot, v] of [["MAE", `${fmt(m.mae)} kW`], ["RMSE", `${fmt(m.rmse)} kW`], ["WAPE", pct(m.wape, 0)]]) {
-    const s = document.createElement("span");
-    const b = document.createElement("strong");
-    b.textContent = v;
-    s.append(`${rot} `, b);
-    el.appendChild(s);
-  }
-  return el;
 }
 
 function desenharMetricasDia() {
@@ -314,37 +292,50 @@ function desenharMetricasDia() {
   el.replaceChildren();
   const p = E.prev;
   if (!p) return;
-  const info = document.createElement("div");
-  info.className = "chip";
   if (!p.real) {
-    info.textContent = "Período futuro: não há consumo real para comparar — esta é uma previsão de verdade.";
-    el.appendChild(info);
+    const d = document.createElement("p");
+    d.className = "rot";
+    d.textContent = "Período futuro: ainda não há consumo real para comparar.";
+    el.appendChild(d);
     return;
   }
-  if (!E.revelado) {
-    info.textContent = "Faça sua aposta e clique em “Revelar o real” para ver o erro deste dia.";
-    el.appendChild(info);
-    return;
-  }
+  if (!E.revelado) return;
   const m = p.metricas, b = m.baseline;
   const vence = m.mae < b.mae;
-  el.appendChild(chip(`${NOMES[p.modelo]} neste dia`, m, corModelo(p.modelo), vence));
-  el.appendChild(chip("Baseline", b, cor("--serie-baseline"), !vence));
-  const veredito = document.createElement("div");
-  veredito.className = "chip";
   const dif = (b.mae - m.mae) / b.mae;
+  const veredito = document.createElement("p");
+  veredito.className = "veredito";
   veredito.textContent = vence
     ? `${NOMES[p.modelo]} errou ${pct(dif, 0)} menos que o baseline neste dia.`
-    : `Neste dia o baseline foi melhor (${NOMES[p.modelo]} errou ${pct(-dif, 0)} a mais).`;
+    : `Neste dia o baseline foi melhor: ${NOMES[p.modelo]} errou ${pct(-dif, 0)} a mais.`;
   if (m.horas_com_real < 24) veredito.textContent += ` Apenas ${m.horas_com_real} h com dado real.`;
-  el.appendChild(veredito);
+
+  const tab = document.createElement("table");
+  tab.className = "mini";
+  const cab = tab.createTHead().insertRow();
+  for (const t of ["", "MAE", "RMSE", "WAPE"]) { const th = document.createElement("th"); th.textContent = t; cab.appendChild(th); }
+  const corpo = tab.createTBody();
+  const linha = (nome, x, corMarca, ganhou) => {
+    const tr = corpo.insertRow();
+    if (ganhou) tr.className = "vence";
+    const mk = document.createElement("span");
+    mk.className = "marcador";
+    mk.style.background = corMarca;
+    tr.insertCell().append(mk, ` ${nome}`);
+    tr.insertCell().textContent = `${fmt(x.mae)} kW`;
+    tr.insertCell().textContent = `${fmt(x.rmse)} kW`;
+    tr.insertCell().textContent = pct(x.wape, 0);
+  };
+  linha(NOMES[p.modelo], m, corModelo(p.modelo), vence);
+  linha("Baseline", b, cor("--serie-baseline"), !vence);
+  el.append(veredito, tab);
 }
 
 // ------------------------------------------------------------------ reprodução
 function pararReproducao() {
   E.tocando = false;
   const b = $("#btn-play");
-  b.textContent = "▶ Reproduzir";
+  b.querySelector("span").textContent = "Reproduzir";
   b.setAttribute("aria-pressed", "false");
 }
 
@@ -353,7 +344,7 @@ async function reproduzir() {
   if (E.idx >= E.refs.length - 1) E.idx = 0;
   E.tocando = true;
   const b = $("#btn-play");
-  b.textContent = "❚❚ Pausar";
+  b.querySelector("span").textContent = "Pausar";
   b.setAttribute("aria-pressed", "true");
   while (E.tocando && E.idx < E.refs.length - 1) {
     E.idx += 1;
@@ -399,7 +390,7 @@ function desenharCusto() {
   if (!c || !p) return;
   $("#k-total").textContent = brl(c.custo_total);
   $("#k-ponta").textContent = brl(c.custo_ponta);
-  $("#k-ponta-kwh").textContent = `(${fmt(c.kwh_ponta, 1)} kWh)`;
+  $("#k-ponta-kwh").textContent = `${fmt(c.kwh_ponta, 1)} kWh`;
   $("#k-desl").textContent = brl(c.custo_com_deslocamento);
   $("#k-eco").textContent = brl(c.economia);
   const fora = c.custo_hora.map((v, i) => (c.ponta[i] ? null : v));
@@ -478,7 +469,7 @@ function desenharAlertas() {
 
 // Arraste da linha de limite: implementado com pointer events (mouse, caneta e toque) sobre o
 // gráfico, em vez da edição de shapes do Plotly, para ter controle do eixo (só vertical) e do passo.
-function textoLimite() { return `limite ${fmt(E.limite, 1)} kW ⇕`; }
+function textoLimite() { return `limite ${fmt(E.limite, 1)} kW · arraste`; }
 
 function moverLinhaLimite() {
   const gd = $("#g-alertas");
@@ -542,40 +533,41 @@ function listarAlertas() {
   const el = $("#lista-alertas");
   el.replaceChildren();
   const a = E.alertas;
-  const vazio = (txt) => { const d = document.createElement("div"); d.className = "vazio-alertas"; d.textContent = txt; el.appendChild(d); };
-  if (!a.picos.length) vazio(`Nenhuma hora prevista acima de ${fmt(E.limite, 1)} kW.`);
-  for (const q of a.picos) {
+  const n = a.picos.length;
+  $("#alertas-titulo").textContent = n === 0
+    ? `Nenhuma hora prevista acima de ${fmt(E.limite, 1)} kW`
+    : `${n} ${n === 1 ? "hora prevista" : "horas previstas"} acima de ${fmt(E.limite, 1)} kW`;
+  const real = realVisivel();
+  let fraseReal = "";
+  if (real) {
+    const acima = E.prev.horas.filter((_, i) => real[i] !== null && real[i] > E.limite).map(rotuloHora);
+    fraseReal = acima.length
+      ? `O consumo real passou do limite em ${acima.length} ${acima.length === 1 ? "hora" : "horas"}: ${acima.join(", ")}.`
+      : "O consumo real também ficou abaixo do limite.";
+  }
+  $("#alertas-real").textContent = fraseReal;
+  const nota = (txt) => { const d = document.createElement("div"); d.className = "nota-alertas"; d.textContent = txt; el.appendChild(d); };
+  const item = (classeMarca, titulo, detalhe, valor) => {
     const d = document.createElement("div");
     d.className = "alerta";
-    const ic = document.createElement("span"); ic.className = "icone"; ic.textContent = "▲"; ic.style.color = cor("--critico");
+    const mk = document.createElement("span"); mk.className = classeMarca;
     const t = document.createElement("div");
-    t.textContent = `Pico previsto às ${rotuloHora(q.hora)}`;
-    const sm = document.createElement("small"); sm.textContent = `${rotuloData(paraMs(q.hora))}`; t.appendChild(sm);
-    const v = document.createElement("div"); v.className = "valor-alerta";
-    v.textContent = `${fmt(q.kw)} kW (+${fmt(q.excedente_kw)})`;
-    d.append(ic, t, v);
+    t.textContent = titulo;
+    if (detalhe) { const sm = document.createElement("small"); sm.textContent = detalhe; t.appendChild(sm); }
+    const v = document.createElement("div"); v.className = "valor-alerta"; v.textContent = valor;
+    d.append(mk, t, v);
     el.appendChild(d);
+  };
+  for (const q of a.picos) {
+    item("m-pico", `${rotuloHora(q.hora)} · ${rotuloData(paraMs(q.hora))}`, null, `${fmt(q.kw)} kW (+${fmt(q.excedente_kw)})`);
   }
   if (realVisivel()) {
-    if (!a.anomalias.length) vazio("Sem desperdício: o consumo real ficou dentro da margem esperada.");
+    if (!a.anomalias.length) nota("Sem desperdício: o consumo real ficou dentro da margem.");
     for (const q of a.anomalias) {
-      const d = document.createElement("div");
-      d.className = "alerta anomalia";
-      const ic = document.createElement("span"); ic.className = "icone"; ic.textContent = "!"; ic.style.color = cor("--texto");
-      ic.style.fontWeight = "800";
-      const t = document.createElement("div");
-      const b = document.createElement("strong");
-      b.textContent = `Anomalia às ${rotuloHora(q.hora)}: real ${fmt(q.real_kw)} kW × previsto ${fmt(q.previsto_kw)} kW`;
-      const sm = document.createElement("small"); sm.textContent = q.sugestao;
-      t.append(b, sm);
-      d.append(ic, t);
-      el.appendChild(d);
+      item("m-anomalia", `${rotuloHora(q.hora)} · real ${fmt(q.real_kw)} kW, previsto ${fmt(q.previsto_kw)} kW`, q.sugestao, "");
     }
   } else if (E.prev && E.prev.real) {
-    const d = document.createElement("div");
-    d.className = "vazio-alertas";
-    d.textContent = "Revele o real na máquina do tempo para procurar desperdícios.";
-    el.appendChild(d);
+    nota("O desperdício aparece depois de revelar o consumo real.");
   }
 }
 
@@ -585,29 +577,25 @@ function atualizarCartoes() {
   if (!p) return;
   const kwh = soma(p.previsto);
   $("#c-kwh").innerHTML = `${fmt(kwh, 1)}<small>kWh</small>`;
-  const real = realVisivel();
-  $("#c-kwh-nota").textContent = real
-    ? `Real: ${fmt(soma(real), 1)} kWh · baseline ${fmt(soma(p.baseline), 1)} kWh`
-    : `Baseline: ${fmt(soma(p.baseline), 1)} kWh`;
-
-  let iMax = 0;
-  p.previsto.forEach((v, i) => { if (v > p.previsto[iMax]) iMax = i; });
-  $("#c-pico").innerHTML = `${fmt(p.previsto[iMax])}<small>kW</small>`;
-  $("#c-pico-nota").textContent = `às ${rotuloHora(p.horas[iMax])} de ${rotuloData(paraMs(p.horas[iMax]), false).slice(0, 5)}`;
-
-  if (E.custo) {
-    $("#c-custo").textContent = brl(E.custo.custo_total);
-    $("#c-custo-nota").textContent = E.custo.economia > 0
-      ? `ou ${brl(E.custo.custo_com_deslocamento)} deslocando a ponta`
-      : `${brl(E.custo.custo_ponta)} no horário de ponta`;
-  }
+  const ini = paraMs(p.horas[0]);
+  $("#c-rot").textContent = hora(p.horas[0]) === 0
+    ? `Previsto para ${rotuloData(ini)}`
+    : `Previsto para as 24 h a partir de ${rotuloData(ini)} · ${rotuloHora(p.horas[0])}`;
 
   const anterior = soma(p.historico.kw.slice(-24));
   const varia = anterior > 0 ? (kwh - anterior) / anterior : 0;
-  const el = $("#c-var");
-  el.textContent = `${varia >= 0 ? "▲" : "▼"} ${pct(Math.abs(varia))}`;
-  el.className = "valor " + (varia >= 0 ? "sobe" : "desce");
-  $("#c-var-nota").textContent = `24 h anteriores: ${fmt(anterior, 1)} kWh`;
+  $("#c-var").textContent = `${pct(Math.abs(varia))} ${varia >= 0 ? "acima" : "abaixo"} das 24 h anteriores`;
+
+  const real = realVisivel();
+  $("#c-kwh-nota").textContent = real ? `Real: ${fmt(soma(real), 1)} kWh` : "";
+
+  let iMax = 0;
+  p.previsto.forEach((v, i) => { if (v > p.previsto[iMax]) iMax = i; });
+  const quando = document.createElement("span");
+  quando.textContent = ` às ${rotuloHora(p.horas[iMax])}`;
+  $("#c-pico").replaceChildren(`${fmt(p.previsto[iMax])} kW`, quando);
+
+  if (E.custo) $("#c-custo").textContent = brl(E.custo.custo_total);
 }
 
 // ------------------------------------------------------------------ tabela
@@ -725,7 +713,7 @@ function desenharDesempenho() {
     const c = d.conjunto_teste;
     $("#desempenho-desc").textContent = `Conjunto de teste: ${rotuloData(Date.parse(c.inicio.replace(" ", "T") + "Z"), false)} a ` +
       `${rotuloData(Date.parse(c.fim.replace(" ", "T") + "Z"), false)} · ${fmt(c.janelas, 0)} previsões de 24 h · ` +
-      "dados nunca vistos no treino. Épocas = melhor / executadas (early stopping). ★ = melhor.";
+      "nunca vistas no treino. Épocas = melhor / executadas (early stopping).";
   }
 
   const corDe = (m) => (m === "baseline" ? cor("--serie-baseline") : corModelo(m));
