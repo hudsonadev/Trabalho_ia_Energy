@@ -1,0 +1,187 @@
+1
+00:00:00,350 --> 00:00:07,636
+EnergyGreen: previsão de consumo de energia com Deep Learning. Neste vídeo, vamos ver como
+
+2
+00:00:07,636 --> 00:00:11,116
+o sistema funciona, dos dados até o painel.
+
+3
+00:00:12,017 --> 00:00:18,609
+O problema é fácil de enunciar. Se soubermos hoje quanta energia será consumida amanhã, dá
+
+4
+00:00:18,609 --> 00:00:25,129
+para planejar a operação, tirar carga do horário de ponta, quando a tarifa é mais cara, e
+
+5
+00:00:25,129 --> 00:00:31,282
+perceber desperdício. O difícil é que o consumo tem padrões fortes, mas também muito
+
+6
+00:00:31,282 --> 00:00:31,722
+ruído.
+
+7
+00:00:32,617 --> 00:00:39,354
+Os dados vêm de um conjunto público da UCI: uma residência na França, medida a cada
+
+8
+00:00:39,354 --> 00:00:46,253
+minuto, de dezembro de 2006 a novembro de 2010. São mais de dois milhões de medições.
+
+9
+00:00:46,253 --> 00:00:51,691
+Agregamos por hora, o que resulta em quase 35 mil horas de consumo.
+
+10
+00:00:52,583 --> 00:00:58,756
+Antes de treinar, os dados passam por uma preparação. Limpamos o arquivo, calculamos a
+
+11
+00:00:58,756 --> 00:01:04,929
+média por hora e preenchemos as lacunas. Depois montamos doze variáveis de entrada: as
+
+12
+00:01:04,929 --> 00:01:11,102
+sete medições, a hora do dia e o dia da semana em forma cíclica, e uma marca de fim de
+
+13
+00:01:11,102 --> 00:01:11,604
+semana.
+
+14
+00:01:12,517 --> 00:01:19,053
+A divisão é cronológica: setenta por cento para treino, quinze para validação e quinze
+
+15
+00:01:19,053 --> 00:01:25,589
+para teste, sem embaralhar. A normalização é ajustada apenas no treino. Assim o modelo
+
+16
+00:01:25,589 --> 00:01:29,465
+nunca enxerga o futuro, e as métricas são honestas.
+
+17
+00:01:30,350 --> 00:01:38,634
+Cada exemplo de treino é uma janela. O modelo olha as últimas 168 horas, ou seja, sete
+
+18
+00:01:38,634 --> 00:01:43,739
+dias, e devolve, de uma só vez, as próximas 24 horas.
+
+19
+00:01:44,650 --> 00:01:52,736
+Comparamos três abordagens. O baseline, que simplesmente repete as últimas 24 horas. E
+
+20
+00:01:52,736 --> 00:02:01,010
+duas redes recorrentes, feitas em PyTorch: uma LSTM e uma GRU, cada uma com duas camadas
+
+21
+00:02:01,010 --> 00:02:02,421
+de 64 unidades.
+
+22
+00:02:03,317 --> 00:02:09,765
+O treino roda em CPU e leva cerca de dez minutos. Usamos parada antecipada: quando o erro
+
+23
+00:02:09,765 --> 00:02:15,416
+de validação para de melhorar, o treino é interrompido e os melhores pesos são
+
+24
+00:02:15,416 --> 00:02:16,285
+restaurados.
+
+25
+00:02:17,183 --> 00:02:25,778
+No teste, com dados que os modelos nunca viram, a LSTM erra em média 0,43 kW por hora,
+
+26
+00:02:25,778 --> 00:02:34,072
+contra 0,50 kW do baseline. É uma redução de cerca de 14% no erro médio. A GRU fica
+
+27
+00:02:34,072 --> 00:02:36,271
+praticamente empatada.
+
+28
+00:02:37,183 --> 00:02:43,570
+O ganho é real, mas moderado, e vale ser honesto sobre isso. O modelo acerta o ritmo do
+
+29
+00:02:43,570 --> 00:02:50,176
+dia, mas subestima os picos, porque ninguém sabe a que horas alguém vai ligar o forno. E o
+
+30
+00:02:50,176 --> 00:02:53,920
+baseline ainda vence em cerca de um terço dos dias.
+
+31
+00:02:54,817 --> 00:03:02,090
+Na aplicação, o caminho é este. O usuário envia um arquivo CSV com o histórico. A API,
+
+32
+00:03:02,090 --> 00:03:09,363
+feita em FastAPI, prepara os dados com o mesmo código usado no treino, roda o modelo e
+
+33
+00:03:09,363 --> 00:03:16,297
+devolve a previsão. O painel, em HTML e JavaScript puro, mostra tudo no navegador.
+
+34
+00:03:17,183 --> 00:03:23,652
+Vamos ao painel. Na tela inicial, carregamos um arquivo com o histórico, ou usamos os
+
+35
+00:03:23,652 --> 00:03:27,077
+dados de exemplo, que são o período de teste.
+
+36
+00:03:27,983 --> 00:03:34,622
+Esta é a máquina do tempo. Escolhemos um dia qualquer do histórico, e o sistema mostra os
+
+37
+00:03:34,622 --> 00:03:39,172
+sete dias de entrada e a previsão para as 24 horas seguintes.
+
+38
+00:03:40,083 --> 00:03:46,084
+Ao revelar o consumo real, comparamos a previsão com o que de fato aconteceu, e vemos o
+
+39
+00:03:46,084 --> 00:03:49,188
+erro daquele dia, lado a lado com o baseline.
+
+40
+00:03:50,083 --> 00:03:56,208
+O simulador de custo transforma a previsão em reais. Dá para ajustar a tarifa e o horário
+
+41
+00:03:56,208 --> 00:04:01,920
+de ponta, e ver quanto se economiza deslocando parte do consumo para fora da ponta.
+
+42
+00:04:02,817 --> 00:04:09,071
+Os alertas mostram as horas previstas acima de um limite de potência, e apontam anomalias,
+
+43
+00:04:09,071 --> 00:04:12,685
+quando o consumo real ficou muito acima do previsto.
+
+44
+00:04:13,583 --> 00:04:19,701
+Por fim, o painel traz o desempenho dos modelos no teste, com as métricas, o erro por
+
+45
+00:04:19,701 --> 00:04:22,004
+horizonte e as curvas de treino.
+
+46
+00:04:22,917 --> 00:04:29,638
+Resumindo: dados preparados sem vazamento, duas redes recorrentes que superam o baseline,
+
+47
+00:04:29,638 --> 00:04:34,245
+e uma aplicação que transforma previsão em decisão. Obrigado.
